@@ -201,14 +201,14 @@ apt-get install -y espeak-ng
 
 ```text
 TTS_ENGINE=espeak
-ESPEAK_VOICE=en
+ESPEAK_VOICE=en-us
 ESPEAK_SPEED=165
 ```
 
 检查 espeak 是否能生成有效 WAV：
 
 ```bash
-espeak-ng -v en -w /tmp/espeak-test.wav "hello"
+espeak-ng -v en-us -w /tmp/espeak-test.wav "hello"
 ls -lh /tmp/espeak-test.wav
 file /tmp/espeak-test.wav
 ```

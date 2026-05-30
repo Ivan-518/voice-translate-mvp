@@ -362,10 +362,16 @@ class EspeakTtsEngine(TtsEngine):
             str(self.speed),
             "-w",
             str(wav_path),
-            text,
+            "--stdin",
         ]
         try:
-            subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            subprocess.run(
+                command,
+                input=text.encode("utf-8"),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
             audio = wav_path.read_bytes()
             if not audio:
                 return TtsResult(audio=generate_silence_wav(24000, 0.25), sample_rate=24000, audio_format="wav")

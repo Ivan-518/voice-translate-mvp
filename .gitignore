@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime outputs
+outputs/
+*.log
+
+# Model and data artifacts
+models/
+checkpoints/
+weights/
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.safetensors
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

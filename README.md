@@ -205,6 +205,21 @@ ESPEAK_VOICE=en
 ESPEAK_SPEED=165
 ```
 
+检查 espeak 是否能生成有效 WAV：
+
+```bash
+espeak-ng -v en -w /tmp/espeak-test.wav "hello"
+ls -lh /tmp/espeak-test.wav
+file /tmp/espeak-test.wav
+```
+
+如果文件大小为 0 或不是 WAV，重新安装：
+
+```bash
+apt-get update
+apt-get install -y --reinstall espeak-ng espeak-ng-data
+```
+
 服务器首次下载 NLLB 模型时建议使用 HuggingFace 镜像：
 
 ```bash

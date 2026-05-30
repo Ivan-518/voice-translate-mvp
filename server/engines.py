@@ -367,10 +367,16 @@ class EspeakTtsEngine(TtsEngine):
         try:
             subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
             audio = wav_path.read_bytes()
-            sample_rate = self._read_wav_sample_rate(audio)
+            if not audio:
+                return TtsResult(audio=generate_silence_wav(24000, 0.25), sample_rate=24000, audio_format="wav")
+            sample_rate = self._safe_read_wav_sample_rate(audio)
+            if sample_rate <= 0:
+                return TtsResult(audio=generate_silence_wav(24000, 0.25), sample_rate=24000, audio_format="wav")
             return TtsResult(audio=audio, sample_rate=sample_rate, audio_format="wav")
         except FileNotFoundError as exc:
             raise RuntimeError("未找到 espeak-ng。请先运行：apt-get install -y espeak-ng") from exc
+        except subprocess.CalledProcessError:
+            return TtsResult(audio=generate_silence_wav(24000, 0.25), sample_rate=24000, audio_format="wav")
         finally:
             try:
                 wav_path.unlink(missing_ok=True)
@@ -394,6 +400,13 @@ class EspeakTtsEngine(TtsEngine):
     def _read_wav_sample_rate(audio: bytes) -> int:
         with wave.open(io.BytesIO(audio), "rb") as wav_file:
             return wav_file.getframerate()
+
+    @staticmethod
+    def _safe_read_wav_sample_rate(audio: bytes) -> int:
+        try:
+            return EspeakTtsEngine._read_wav_sample_rate(audio)
+        except (EOFError, wave.Error):
+            return 0
 
 
 class PassthroughPostProcessor(AudioPostProcessor):

@@ -17,6 +17,9 @@ pipeline = create_default_pipeline(
     faster_whisper_vad_filter=settings.faster_whisper_vad_filter,
     faster_whisper_initial_prompt=settings.faster_whisper_initial_prompt,
     translation_engine=settings.translation_engine,
+    nllb_model=settings.nllb_model,
+    nllb_device=settings.nllb_device,
+    nllb_max_new_tokens=settings.nllb_max_new_tokens,
     tts_engine=settings.tts_engine,
 )
 

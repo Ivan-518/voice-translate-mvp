@@ -162,7 +162,10 @@ class GoogleTranslationEngine(TranslationEngine):
 
         source = self._normalize_lang(source_lang, is_source=True)
         target = self._normalize_lang(target_lang, is_source=False)
-        translated = GoogleTranslator(source=source, target=target).translate(text)
+        try:
+            translated = GoogleTranslator(source=source, target=target).translate(text)
+        except Exception as exc:
+            raise RuntimeError(f"Google 翻译不可用：{exc}") from exc
         return TranslationResult(text=translated, source_lang=source_lang, target_lang=target_lang)
 
     @staticmethod
@@ -182,6 +185,86 @@ class GoogleTranslationEngine(TranslationEngine):
             "es": "es",
             "ru": "ru",
         }.get(lang, lang)
+
+
+class NllbTranslationEngine(TranslationEngine):
+    name = "nllb-translation"
+
+    def __init__(self, model_name: str, device: str = "auto", max_new_tokens: int = 128) -> None:
+        self.model_name = model_name
+        self.device = device
+        self.max_new_tokens = max_new_tokens
+        self.tokenizer = None
+        self.model = None
+        self.torch_device = None
+
+    async def translate(self, text: str, source_lang: str, target_lang: str) -> TranslationResult:
+        return await asyncio.to_thread(self._translate_sync, text, source_lang, target_lang)
+
+    def _translate_sync(self, text: str, source_lang: str, target_lang: str) -> TranslationResult:
+        if not text.strip():
+            return TranslationResult(text="", source_lang=source_lang, target_lang=target_lang)
+
+        tokenizer, model, torch_device = self._get_model()
+        src_code = self._to_nllb_code(source_lang, is_source=True)
+        tgt_code = self._to_nllb_code(target_lang, is_source=False)
+
+        tokenizer.src_lang = src_code
+        inputs = tokenizer(text, return_tensors="pt", truncation=True).to(torch_device)
+        forced_bos_token_id = tokenizer.convert_tokens_to_ids(tgt_code)
+        generated = model.generate(
+            **inputs,
+            forced_bos_token_id=forced_bos_token_id,
+            max_new_tokens=self.max_new_tokens,
+        )
+        translated = tokenizer.batch_decode(generated, skip_special_tokens=True)[0].strip()
+        return TranslationResult(text=translated, source_lang=source_lang, target_lang=target_lang)
+
+    def _get_model(self):
+        if self.model is not None and self.tokenizer is not None and self.torch_device is not None:
+            return self.tokenizer, self.model, self.torch_device
+
+        try:
+            import torch
+            from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+        except ImportError as exc:
+            raise RuntimeError(
+                "未安装本地翻译依赖。请先运行：pip install -e \".[local-translate]\""
+            ) from exc
+
+        if self.device == "auto":
+            torch_device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            torch_device = self.device
+
+        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
+        model.to(torch_device)
+        model.eval()
+
+        self.tokenizer = tokenizer
+        self.model = model
+        self.torch_device = torch_device
+        return tokenizer, model, torch_device
+
+    @staticmethod
+    def _to_nllb_code(lang: str, is_source: bool) -> str:
+        if is_source and lang in {"", "auto", "unknown"}:
+            return "zho_Hans"
+        return {
+            "zh": "zho_Hans",
+            "zh-cn": "zho_Hans",
+            "zh_cn": "zho_Hans",
+            "zh-CN": "zho_Hans",
+            "en": "eng_Latn",
+            "ja": "jpn_Jpan",
+            "jp": "jpn_Jpan",
+            "ko": "kor_Hang",
+            "fr": "fra_Latn",
+            "de": "deu_Latn",
+            "es": "spa_Latn",
+            "ru": "rus_Cyrl",
+        }.get(lang, "eng_Latn" if not is_source else "zho_Hans")
 
 
 class StubTtsEngine(TtsEngine):

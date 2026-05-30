@@ -170,9 +170,31 @@ python -m client.record_once --seconds 3 --source-lang zh --target-lang en --pla
 ```text
 麦克风录音
   -> faster-whisper 识别
-  -> Google Translate 翻译
+  -> Google Translate 或本地 NLLB 翻译
   -> Windows SAPI / pyttsx3 本地 TTS
   -> 本地播放或输出到指定音频设备
+```
+
+AutoDL 访问不了 `translate.google.com` 时，改用本地 NLLB 翻译：
+
+```text
+TRANSLATION_ENGINE=nllb
+NLLB_MODEL=facebook/nllb-200-distilled-600M
+NLLB_DEVICE=cuda
+NLLB_MAX_NEW_TOKENS=128
+```
+
+服务器首次下载 NLLB 模型时建议使用 HuggingFace 镜像：
+
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
+python - <<'PY'
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+model = "facebook/nllb-200-distilled-600M"
+AutoTokenizer.from_pretrained(model)
+AutoModelForSeq2SeqLM.from_pretrained(model)
+print("nllb ready")
+PY
 ```
 
 如果要输出到虚拟麦克风，先查看设备名：
@@ -204,7 +226,7 @@ python -m client.record_once --seconds 3 --play --output-device "CABLE Input"
 | 阶段 | 目标 | 修改位置 |
 | --- | --- | --- |
 | 1 | 接真实 ASR | 已支持 `FasterWhisperAsrEngine`，通过 `ASR_ENGINE=faster_whisper` 启用 |
-| 2 | 接真实翻译 | 已支持 `GoogleTranslationEngine`，通过 `TRANSLATION_ENGINE=google` 启用 |
+| 2 | 接真实翻译 | 已支持 `GoogleTranslationEngine` 和 `NllbTranslationEngine` |
 | 3 | 接真实 TTS | 已支持 `Pyttsx3TtsEngine`，通过 `TTS_ENGINE=pyttsx3` 启用 |
 | 4 | 本地虚拟麦克风 | `client/` 新增输出设备选择和持续播放队列 |
 | 5 | 接 RVC | 在 `AudioPostProcessor` 后处理钩子里增加 `RvcPostProcessor` |

@@ -22,6 +22,9 @@ class Settings(BaseSettings):
         validation_alias="FASTER_WHISPER_INITIAL_PROMPT",
     )
     translation_engine: str = Field(default="stub", validation_alias="TRANSLATION_ENGINE")
+    nllb_model: str = Field(default="facebook/nllb-200-distilled-600M", validation_alias="NLLB_MODEL")
+    nllb_device: str = Field(default="auto", validation_alias="NLLB_DEVICE")
+    nllb_max_new_tokens: int = Field(default=128, validation_alias="NLLB_MAX_NEW_TOKENS")
     tts_engine: str = Field(default="stub", validation_alias="TTS_ENGINE")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

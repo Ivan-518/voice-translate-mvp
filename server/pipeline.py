@@ -7,6 +7,7 @@ from server.engines import (
     AudioPostProcessor,
     FasterWhisperAsrEngine,
     GoogleTranslationEngine,
+    NllbTranslationEngine,
     PassthroughPostProcessor,
     Pyttsx3TtsEngine,
     StubAsrEngine,
@@ -118,6 +119,9 @@ def create_default_pipeline(
     faster_whisper_vad_filter: bool = True,
     faster_whisper_initial_prompt: str = "",
     translation_engine: str = "stub",
+    nllb_model: str = "facebook/nllb-200-distilled-600M",
+    nllb_device: str = "auto",
+    nllb_max_new_tokens: int = 128,
     tts_engine: str = "stub",
 ) -> SpeechPipeline:
     if asr_engine == "stub":
@@ -138,6 +142,12 @@ def create_default_pipeline(
         translator = StubTranslationEngine()
     elif translation_engine == "google":
         translator = GoogleTranslationEngine()
+    elif translation_engine == "nllb":
+        translator = NllbTranslationEngine(
+            model_name=nllb_model,
+            device=nllb_device,
+            max_new_tokens=nllb_max_new_tokens,
+        )
     else:
         raise ValueError(f"unsupported TRANSLATION_ENGINE: {translation_engine}")
 

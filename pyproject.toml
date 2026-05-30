@@ -23,6 +23,11 @@ asr = [
 translate = [
     "deep-translator>=1.11.4",
 ]
+local-translate = [
+    "sentencepiece>=0.2.0",
+    "torch>=2.1",
+    "transformers>=4.42",
+]
 tts = [
     "pyttsx3>=2.90",
 ]

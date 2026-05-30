@@ -1,8 +1,11 @@
 import asyncio
 import io
+import json
 import subprocess
 import tempfile
 import threading
+import urllib.error
+import urllib.request
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -375,6 +378,92 @@ class QwenTranslationEngine(TranslationEngine):
             "es": "Spanish",
             "ru": "Russian",
         }.get(lang, default)
+
+    @staticmethod
+    def _clean_output(text: str) -> str:
+        cleaned = text.strip()
+        for prefix in ("Translation:", "Translated text:", "译文：", "翻译："):
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix) :].strip()
+        return cleaned.strip("\"'“”")
+
+
+class OpenAICompatibleTranslationEngine(TranslationEngine):
+    name = "llm-translation"
+
+    def __init__(self, base_url: str, api_key: str, model: str, timeout: float = 30.0) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.model = model
+        self.timeout = timeout
+
+    async def translate(self, text: str, source_lang: str, target_lang: str) -> TranslationResult:
+        return await asyncio.to_thread(self._translate_sync, text, source_lang, target_lang)
+
+    def _translate_sync(self, text: str, source_lang: str, target_lang: str) -> TranslationResult:
+        if not text.strip():
+            return TranslationResult(text="", source_lang=source_lang, target_lang=target_lang)
+        if not self.api_key:
+            raise RuntimeError("LLM_TRANSLATION_API_KEY 未配置")
+
+        payload = {
+            "model": self.model,
+            "temperature": 0,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a professional real-time interpreter. "
+                        "Translate faithfully and concisely. "
+                        "Return only the translated sentence. "
+                        "Do not add explanations, prefixes, bullet points, or facts."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": self._build_prompt(text, source_lang, target_lang),
+                },
+            ],
+        }
+        req = urllib.request.Request(
+            f"{self.base_url}/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            error_body = exc.read().decode("utf-8", errors="ignore")
+            raise RuntimeError(f"LLM 翻译接口 HTTP {exc.code}: {error_body}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"LLM 翻译接口不可用：{exc.reason}") from exc
+
+        try:
+            translated = data["choices"][0]["message"]["content"].strip()
+        except (KeyError, IndexError, TypeError) as exc:
+            raise RuntimeError(f"LLM 翻译响应格式异常：{data}") from exc
+
+        return TranslationResult(
+            text=self._clean_output(translated),
+            source_lang=source_lang,
+            target_lang=target_lang,
+        )
+
+    @staticmethod
+    def _build_prompt(text: str, source_lang: str, target_lang: str) -> str:
+        source_name = QwenTranslationEngine._lang_name(source_lang, default="Chinese")
+        target_name = QwenTranslationEngine._lang_name(target_lang, default="English")
+        return (
+            f"Translate from {source_name} to {target_name}. "
+            "Keep brand names, numbers, and punctuation faithful. "
+            "Text:\n"
+            f"{text}"
+        )
 
     @staticmethod
     def _clean_output(text: str) -> str:

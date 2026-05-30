@@ -9,6 +9,7 @@ from server.engines import (
     FasterWhisperAsrEngine,
     GoogleTranslationEngine,
     NllbTranslationEngine,
+    OpenAICompatibleTranslationEngine,
     PassthroughPostProcessor,
     Pyttsx3TtsEngine,
     QwenTranslationEngine,
@@ -127,6 +128,10 @@ def create_default_pipeline(
     qwen_model: str = "Qwen/Qwen2.5-3B-Instruct",
     qwen_device: str = "auto",
     qwen_max_new_tokens: int = 128,
+    llm_translation_base_url: str = "https://www.packyapi.com/v1",
+    llm_translation_api_key: str = "",
+    llm_translation_model: str = "gpt-4o-mini",
+    llm_translation_timeout: float = 30.0,
     tts_engine: str = "stub",
     espeak_voice: str = "en",
     espeak_speed: int = 165,
@@ -160,6 +165,13 @@ def create_default_pipeline(
             model_name=qwen_model,
             device=qwen_device,
             max_new_tokens=qwen_max_new_tokens,
+        )
+    elif translation_engine in {"llm", "openai"}:
+        translator = OpenAICompatibleTranslationEngine(
+            base_url=llm_translation_base_url,
+            api_key=llm_translation_api_key,
+            model=llm_translation_model,
+            timeout=llm_translation_timeout,
         )
     else:
         raise ValueError(f"unsupported TRANSLATION_ENGINE: {translation_engine}")

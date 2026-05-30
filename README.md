@@ -255,6 +255,16 @@ python tools/download_models.py --qwen
 QWEN_MODEL=Qwen/Qwen2.5-7B-Instruct
 ```
 
+如果要使用 OpenAI-compatible 大模型 API 翻译，例如 Packy API：
+
+```text
+TRANSLATION_ENGINE=llm
+LLM_TRANSLATION_BASE_URL=https://www.packyapi.com/v1
+LLM_TRANSLATION_API_KEY=你的 API Key
+LLM_TRANSLATION_MODEL=gpt-4o-mini
+LLM_TRANSLATION_TIMEOUT=30
+```
+
 如果要输出到虚拟麦克风，先查看设备名：
 
 ```powershell
@@ -294,7 +304,7 @@ apt-get install -y espeak-ng
 ```text
 HF_ENDPOINT=https://hf-mirror.com
 ASR_ENGINE=faster_whisper
-TRANSLATION_ENGINE=qwen
+TRANSLATION_ENGINE=llm
 TTS_ENGINE=espeak
 SOURCE_LANG=zh
 TARGET_LANG=en
@@ -305,9 +315,10 @@ FASTER_WHISPER_COMPUTE_TYPE=float16
 FASTER_WHISPER_BEAM_SIZE=5
 FASTER_WHISPER_VAD_FILTER=false
 FASTER_WHISPER_INITIAL_PROMPT=以下是普通话中文语音，请准确转写为简体中文。
-QWEN_MODEL=Qwen/Qwen2.5-3B-Instruct
-QWEN_DEVICE=cuda
-QWEN_MAX_NEW_TOKENS=128
+LLM_TRANSLATION_BASE_URL=https://www.packyapi.com/v1
+LLM_TRANSLATION_API_KEY=你的 API Key
+LLM_TRANSLATION_MODEL=gpt-4o-mini
+LLM_TRANSLATION_TIMEOUT=30
 ESPEAK_VOICE=en
 ESPEAK_SPEED=165
 ```
@@ -315,7 +326,7 @@ ESPEAK_SPEED=165
 预下载模型：
 
 ```bash
-python tools/download_models.py --asr --qwen
+python tools/download_models.py --asr
 ```
 
 启动服务：
@@ -329,7 +340,7 @@ python run_server.py --host 0.0.0.0 --port 6006
 | 阶段 | 目标 | 修改位置 |
 | --- | --- | --- |
 | 1 | 接真实 ASR | 已支持 `FasterWhisperAsrEngine`，通过 `ASR_ENGINE=faster_whisper` 启用 |
-| 2 | 接真实翻译 | 已支持 Google、NLLB 和 Qwen 翻译引擎 |
+| 2 | 接真实翻译 | 已支持 Google、NLLB、Qwen 和 OpenAI-compatible API 翻译引擎 |
 | 3 | 接真实 TTS | 已支持 `Pyttsx3TtsEngine`，通过 `TTS_ENGINE=pyttsx3` 启用 |
 | 4 | 本地虚拟麦克风 | `client/` 新增输出设备选择和持续播放队列 |
 | 5 | 接 RVC | 在 `AudioPostProcessor` 后处理钩子里增加 `RvcPostProcessor` |

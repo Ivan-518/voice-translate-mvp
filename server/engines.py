@@ -391,11 +391,19 @@ class QwenTranslationEngine(TranslationEngine):
 class OpenAICompatibleTranslationEngine(TranslationEngine):
     name = "llm-translation"
 
-    def __init__(self, base_url: str, api_key: str, model: str, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        timeout: float = 30.0,
+        temperature: str = "",
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
         self.timeout = timeout
+        self.temperature = temperature
 
     async def translate(self, text: str, source_lang: str, target_lang: str) -> TranslationResult:
         return await asyncio.to_thread(self._translate_sync, text, source_lang, target_lang)
@@ -408,7 +416,6 @@ class OpenAICompatibleTranslationEngine(TranslationEngine):
 
         payload = {
             "model": self.model,
-            "temperature": 0,
             "messages": [
                 {
                     "role": "system",
@@ -425,6 +432,8 @@ class OpenAICompatibleTranslationEngine(TranslationEngine):
                 },
             ],
         }
+        if self.temperature.strip():
+            payload["temperature"] = float(self.temperature)
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(payload).encode("utf-8"),
@@ -436,7 +445,11 @@ class OpenAICompatibleTranslationEngine(TranslationEngine):
         )
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as response:
-                data = json.loads(response.read().decode("utf-8"))
+                body = response.read().decode("utf-8", errors="replace")
+                try:
+                    data = json.loads(body)
+                except json.JSONDecodeError as exc:
+                    raise RuntimeError(f"LLM 翻译响应不是 JSON：{body[:500]}") from exc
         except urllib.error.HTTPError as exc:
             error_body = exc.read().decode("utf-8", errors="ignore")
             raise RuntimeError(f"LLM 翻译接口 HTTP {exc.code}: {error_body}") from exc

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     llm_translation_api_key: str = Field(default="", validation_alias="LLM_TRANSLATION_API_KEY")
     llm_translation_model: str = Field(default="gpt-4o-mini", validation_alias="LLM_TRANSLATION_MODEL")
     llm_translation_timeout: float = Field(default=30.0, validation_alias="LLM_TRANSLATION_TIMEOUT")
+    llm_translation_temperature: str = Field(default="", validation_alias="LLM_TRANSLATION_TEMPERATURE")
     tts_engine: str = Field(default="stub", validation_alias="TTS_ENGINE")
     espeak_voice: str = Field(default="en", validation_alias="ESPEAK_VOICE")
     espeak_speed: int = Field(default=165, validation_alias="ESPEAK_SPEED")

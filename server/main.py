@@ -31,6 +31,7 @@ pipeline = create_default_pipeline(
     llm_translation_api_key=settings.llm_translation_api_key,
     llm_translation_model=settings.llm_translation_model,
     llm_translation_timeout=settings.llm_translation_timeout,
+    llm_translation_temperature=settings.llm_translation_temperature,
     tts_engine=settings.tts_engine,
     espeak_voice=settings.espeak_voice,
     espeak_speed=settings.espeak_speed,

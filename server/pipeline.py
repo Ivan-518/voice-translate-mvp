@@ -132,6 +132,7 @@ def create_default_pipeline(
     llm_translation_api_key: str = "",
     llm_translation_model: str = "gpt-4o-mini",
     llm_translation_timeout: float = 30.0,
+    llm_translation_temperature: str = "",
     tts_engine: str = "stub",
     espeak_voice: str = "en",
     espeak_speed: int = 165,
@@ -172,6 +173,7 @@ def create_default_pipeline(
             api_key=llm_translation_api_key,
             model=llm_translation_model,
             timeout=llm_translation_timeout,
+            temperature=llm_translation_temperature,
         )
     else:
         raise ValueError(f"unsupported TRANSLATION_ENGINE: {translation_engine}")

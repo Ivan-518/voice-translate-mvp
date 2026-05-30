@@ -11,6 +11,7 @@ from server.engines import (
     NllbTranslationEngine,
     PassthroughPostProcessor,
     Pyttsx3TtsEngine,
+    QwenTranslationEngine,
     StubAsrEngine,
     StubTranslationEngine,
     StubTtsEngine,
@@ -123,6 +124,9 @@ def create_default_pipeline(
     nllb_model: str = "facebook/nllb-200-distilled-600M",
     nllb_device: str = "auto",
     nllb_max_new_tokens: int = 128,
+    qwen_model: str = "Qwen/Qwen2.5-3B-Instruct",
+    qwen_device: str = "auto",
+    qwen_max_new_tokens: int = 128,
     tts_engine: str = "stub",
     espeak_voice: str = "en",
     espeak_speed: int = 165,
@@ -150,6 +154,12 @@ def create_default_pipeline(
             model_name=nllb_model,
             device=nllb_device,
             max_new_tokens=nllb_max_new_tokens,
+        )
+    elif translation_engine == "qwen":
+        translator = QwenTranslationEngine(
+            model_name=qwen_model,
+            device=qwen_device,
+            max_new_tokens=qwen_max_new_tokens,
         )
     else:
         raise ValueError(f"unsupported TRANSLATION_ENGINE: {translation_engine}")

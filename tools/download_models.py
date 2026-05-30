@@ -27,30 +27,42 @@ def download_nllb(model_name: str) -> None:
     print("[translate] ready")
 
 
+def download_qwen(model_name: str) -> None:
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    print(f"[translate] loading Qwen model: {model_name}")
+    AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    AutoModelForCausalLM.from_pretrained(model_name, torch_dtype="auto", trust_remote_code=True)
+    print("[translate] ready")
+
+
 def main() -> None:
     settings = get_settings()
     parser = argparse.ArgumentParser(description="Download and cache runtime models.")
     parser.add_argument("--all", action="store_true", help="Download all configured model families.")
     parser.add_argument("--asr", action="store_true", help="Download the configured faster-whisper model.")
     parser.add_argument("--translation", action="store_true", help="Download the configured NLLB model.")
+    parser.add_argument("--qwen", action="store_true", help="Download the configured Qwen translation model.")
     parser.add_argument("--hf-endpoint", default=settings.hf_endpoint)
     parser.add_argument("--asr-model", default=settings.faster_whisper_model)
     parser.add_argument("--asr-device", default=settings.faster_whisper_device)
     parser.add_argument("--asr-compute-type", default=settings.faster_whisper_compute_type)
     parser.add_argument("--nllb-model", default=settings.nllb_model)
+    parser.add_argument("--qwen-model", default=settings.qwen_model)
     args = parser.parse_args()
 
     configure_hf_endpoint(args.hf_endpoint)
     print(f"HF_ENDPOINT={os.environ.get('HF_ENDPOINT', '')}")
     print(f"HF_HOME={os.environ.get('HF_HOME', str(Path.home() / '.cache' / 'huggingface'))}")
 
-    download_all = args.all or not (args.asr or args.translation)
+    download_all = args.all or not (args.asr or args.translation or args.qwen)
     if download_all or args.asr:
         download_faster_whisper(args.asr_model, args.asr_device, args.asr_compute_type)
     if download_all or args.translation:
         download_nllb(args.nllb_model)
+    if args.qwen:
+        download_qwen(args.qwen_model)
 
 
 if __name__ == "__main__":
     main()
-

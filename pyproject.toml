@@ -28,6 +28,11 @@ local-translate = [
     "torch>=2.1",
     "transformers>=4.42",
 ]
+qwen-translate = [
+    "accelerate>=0.33",
+    "torch>=2.1",
+    "transformers>=4.42",
+]
 tts = [
     "pyttsx3>=2.90",
 ]

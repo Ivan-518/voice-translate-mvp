@@ -268,6 +268,123 @@ class NllbTranslationEngine(TranslationEngine):
         }.get(lang, "eng_Latn" if not is_source else "zho_Hans")
 
 
+class QwenTranslationEngine(TranslationEngine):
+    name = "qwen-translation"
+
+    def __init__(self, model_name: str, device: str = "auto", max_new_tokens: int = 128) -> None:
+        self.model_name = model_name
+        self.device = device
+        self.max_new_tokens = max_new_tokens
+        self.tokenizer = None
+        self.model = None
+        self.torch_device = None
+
+    async def translate(self, text: str, source_lang: str, target_lang: str) -> TranslationResult:
+        return await asyncio.to_thread(self._translate_sync, text, source_lang, target_lang)
+
+    def _translate_sync(self, text: str, source_lang: str, target_lang: str) -> TranslationResult:
+        if not text.strip():
+            return TranslationResult(text="", source_lang=source_lang, target_lang=target_lang)
+
+        tokenizer, model, torch_device = self._get_model()
+        prompt = self._build_prompt(text, source_lang, target_lang)
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a professional real-time interpreter. "
+                    "Translate faithfully and concisely. "
+                    "Return only the translated sentence, with no explanation."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ]
+        encoded_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        inputs = tokenizer([encoded_text], return_tensors="pt").to(torch_device)
+        generated = model.generate(
+            **inputs,
+            max_new_tokens=self.max_new_tokens,
+            do_sample=False,
+            temperature=None,
+            top_p=None,
+        )
+        output_ids = generated[0][inputs.input_ids.shape[-1] :]
+        translated = tokenizer.decode(output_ids, skip_special_tokens=True).strip()
+        translated = self._clean_output(translated)
+        return TranslationResult(text=translated, source_lang=source_lang, target_lang=target_lang)
+
+    def _get_model(self):
+        if self.model is not None and self.tokenizer is not None and self.torch_device is not None:
+            return self.tokenizer, self.model, self.torch_device
+
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+        except ImportError as exc:
+            raise RuntimeError(
+                "未安装 Qwen 翻译依赖。请先运行：pip install -e \".[qwen-translate]\""
+            ) from exc
+
+        if self.device == "auto":
+            torch_device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            torch_device = self.device
+
+        tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            self.model_name,
+            torch_dtype="auto",
+            device_map=torch_device if torch_device == "cuda" else None,
+            trust_remote_code=True,
+        )
+        if torch_device != "cuda":
+            model.to(torch_device)
+        model.eval()
+
+        self.tokenizer = tokenizer
+        self.model = model
+        self.torch_device = torch_device
+        return tokenizer, model, torch_device
+
+    @staticmethod
+    def _build_prompt(text: str, source_lang: str, target_lang: str) -> str:
+        source_name = QwenTranslationEngine._lang_name(source_lang, default="Chinese")
+        target_name = QwenTranslationEngine._lang_name(target_lang, default="English")
+        return (
+            f"Translate the following {source_name} text into {target_name}. "
+            "Keep names, brands, numbers, and punctuation faithful. "
+            "Do not add facts. Do not summarize. Text:\n"
+            f"{text}"
+        )
+
+    @staticmethod
+    def _lang_name(lang: str, default: str) -> str:
+        return {
+            "auto": default,
+            "unknown": default,
+            "zh": "Chinese",
+            "zh-cn": "Chinese",
+            "zh_cn": "Chinese",
+            "zh-CN": "Chinese",
+            "en": "English",
+            "ja": "Japanese",
+            "jp": "Japanese",
+            "ko": "Korean",
+            "fr": "French",
+            "de": "German",
+            "es": "Spanish",
+            "ru": "Russian",
+        }.get(lang, default)
+
+    @staticmethod
+    def _clean_output(text: str) -> str:
+        cleaned = text.strip()
+        for prefix in ("Translation:", "Translated text:", "译文：", "翻译："):
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix) :].strip()
+        return cleaned.strip("\"'“”")
+
+
 class StubTtsEngine(TtsEngine):
     name = "stub-tts"
 

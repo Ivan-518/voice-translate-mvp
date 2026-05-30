@@ -100,6 +100,12 @@ python -m client.record_once --seconds 3 --target-lang en
 pip install -e ".[asr,translate,tts,client]"
 ```
 
+AutoDL / 国内服务器建议直接使用 HuggingFace 镜像：
+
+```text
+HF_ENDPOINT=https://hf-mirror.com
+```
+
 复制配置文件：
 
 ```powershell
@@ -203,13 +209,13 @@ ESPEAK_SPEED=165
 
 ```bash
 export HF_ENDPOINT=https://hf-mirror.com
-python - <<'PY'
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-model = "facebook/nllb-200-distilled-600M"
-AutoTokenizer.from_pretrained(model)
-AutoModelForSeq2SeqLM.from_pretrained(model)
-print("nllb ready")
-PY
+python tools/download_models.py --translation
+```
+
+也可以一次性下载 ASR 和 NLLB：
+
+```bash
+python tools/download_models.py --all
 ```
 
 如果要输出到虚拟麦克风，先查看设备名：
@@ -234,6 +240,51 @@ python -m client.list_devices
 
 ```powershell
 python -m client.record_once --seconds 3 --play --output-device "CABLE Input"
+```
+
+## AutoDL 推荐部署命令
+
+```bash
+cd ~/autodl-tmp/voice-translate-mvp
+git pull origin main
+python -m pip install -e ".[asr,local-translate,tts]"
+apt-get update
+apt-get install -y espeak-ng
+```
+
+`.env` 推荐配置：
+
+```text
+HF_ENDPOINT=https://hf-mirror.com
+ASR_ENGINE=faster_whisper
+TRANSLATION_ENGINE=nllb
+TTS_ENGINE=espeak
+SOURCE_LANG=zh
+TARGET_LANG=en
+OUTPUT_SAMPLE_RATE=24000
+FASTER_WHISPER_MODEL=base
+FASTER_WHISPER_DEVICE=cuda
+FASTER_WHISPER_COMPUTE_TYPE=float16
+FASTER_WHISPER_BEAM_SIZE=5
+FASTER_WHISPER_VAD_FILTER=false
+FASTER_WHISPER_INITIAL_PROMPT=以下是普通话中文语音，请准确转写为简体中文。
+NLLB_MODEL=facebook/nllb-200-distilled-600M
+NLLB_DEVICE=cuda
+NLLB_MAX_NEW_TOKENS=128
+ESPEAK_VOICE=en
+ESPEAK_SPEED=165
+```
+
+预下载模型：
+
+```bash
+python tools/download_models.py --all
+```
+
+启动服务：
+
+```bash
+python run_server.py --host 0.0.0.0 --port 6006
 ```
 
 ## 后续接入顺序

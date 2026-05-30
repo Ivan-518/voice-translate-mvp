@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     default_target_lang: str = Field(default="en", validation_alias="TARGET_LANG")
     output_sample_rate: int = Field(default=24000, validation_alias="OUTPUT_SAMPLE_RATE")
     max_audio_seconds: float = Field(default=15.0, validation_alias="MAX_AUDIO_SECONDS")
+    hf_endpoint: str = Field(default="https://hf-mirror.com", validation_alias="HF_ENDPOINT")
     asr_engine: str = Field(default="stub", validation_alias="ASR_ENGINE")
     faster_whisper_model: str = Field(default="small", validation_alias="FASTER_WHISPER_MODEL")
     faster_whisper_device: str = Field(default="auto", validation_alias="FASTER_WHISPER_DEVICE")

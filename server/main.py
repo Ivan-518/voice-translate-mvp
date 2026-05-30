@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
@@ -7,6 +9,8 @@ from server.models import AudioProcessRequest, BrowserAudioProcessRequest, Healt
 from server.pipeline import create_default_pipeline
 
 settings = get_settings()
+if settings.hf_endpoint:
+    os.environ.setdefault("HF_ENDPOINT", settings.hf_endpoint)
 pipeline = create_default_pipeline(
     output_sample_rate=settings.output_sample_rate,
     asr_engine=settings.asr_engine,

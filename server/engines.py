@@ -1,12 +1,13 @@
 import asyncio
 import io
+import subprocess
 import tempfile
 import threading
 import wave
 from dataclasses import dataclass
 from pathlib import Path
 
-from server.audio import generate_tone_wav, pcm_s16le_duration_seconds
+from server.audio import generate_silence_wav, generate_tone_wav, pcm_s16le_duration_seconds
 
 
 @dataclass(frozen=True)
@@ -292,23 +293,23 @@ class Pyttsx3TtsEngine(TtsEngine):
             raise RuntimeError("未安装 pyttsx3。请先运行：pip install -e \".[tts]\"") from exc
 
         with self._lock:
-            engine = pyttsx3.init()
-            self._select_voice(engine, target_lang, voice_id)
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
-                wav_path = Path(tmp_file.name)
-
             try:
+                engine = pyttsx3.init()
+                self._select_voice(engine, target_lang, voice_id)
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+                    wav_path = Path(tmp_file.name)
                 engine.save_to_file(text, str(wav_path))
                 engine.runAndWait()
                 audio = wav_path.read_bytes()
+                sample_rate = self._read_wav_sample_rate(audio)
+                return TtsResult(audio=audio, sample_rate=sample_rate, audio_format="wav")
+            except Exception:
+                return TtsResult(audio=generate_silence_wav(24000, 0.25), sample_rate=24000, audio_format="wav")
             finally:
                 try:
                     wav_path.unlink(missing_ok=True)
-                except OSError:
+                except (NameError, OSError):
                     pass
-
-        sample_rate = self._read_wav_sample_rate(audio)
-        return TtsResult(audio=audio, sample_rate=sample_rate, audio_format="wav")
 
     @staticmethod
     def _select_voice(engine, target_lang: str, voice_id: str) -> None:
@@ -328,6 +329,66 @@ class Pyttsx3TtsEngine(TtsEngine):
             if lang_prefix in voice_text:
                 engine.setProperty("voice", voice.id)
                 return
+
+    @staticmethod
+    def _read_wav_sample_rate(audio: bytes) -> int:
+        with wave.open(io.BytesIO(audio), "rb") as wav_file:
+            return wav_file.getframerate()
+
+
+class EspeakTtsEngine(TtsEngine):
+    name = "espeak-tts"
+
+    def __init__(self, voice: str = "en", speed: int = 165) -> None:
+        self.voice = voice
+        self.speed = speed
+
+    async def synthesize(self, text: str, target_lang: str, voice_id: str) -> TtsResult:
+        return await asyncio.to_thread(self._synthesize_sync, text, target_lang, voice_id)
+
+    def _synthesize_sync(self, text: str, target_lang: str, voice_id: str) -> TtsResult:
+        if not text.strip():
+            return TtsResult(audio=generate_silence_wav(24000, 0.25), sample_rate=24000, audio_format="wav")
+
+        voice = voice_id if voice_id and voice_id != "default" else self._voice_for_lang(target_lang)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+            wav_path = Path(tmp_file.name)
+
+        command = [
+            "espeak-ng",
+            "-v",
+            voice,
+            "-s",
+            str(self.speed),
+            "-w",
+            str(wav_path),
+            text,
+        ]
+        try:
+            subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            audio = wav_path.read_bytes()
+            sample_rate = self._read_wav_sample_rate(audio)
+            return TtsResult(audio=audio, sample_rate=sample_rate, audio_format="wav")
+        except FileNotFoundError as exc:
+            raise RuntimeError("未找到 espeak-ng。请先运行：apt-get install -y espeak-ng") from exc
+        finally:
+            try:
+                wav_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    def _voice_for_lang(self, target_lang: str) -> str:
+        lang = target_lang.split("-")[0].lower()
+        return {
+            "zh": "cmn",
+            "en": self.voice,
+            "ja": "ja",
+            "ko": "ko",
+            "fr": "fr",
+            "de": "de",
+            "es": "es",
+            "ru": "ru",
+        }.get(lang, self.voice)
 
     @staticmethod
     def _read_wav_sample_rate(audio: bytes) -> int:

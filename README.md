@@ -184,6 +184,21 @@ NLLB_DEVICE=cuda
 NLLB_MAX_NEW_TOKENS=128
 ```
 
+Linux 服务器不建议用 `pyttsx3`。如果出现 espeak voice 报错，改用命令行 `espeak-ng`：
+
+```bash
+apt-get update
+apt-get install -y espeak-ng
+```
+
+`.env` 中设置：
+
+```text
+TTS_ENGINE=espeak
+ESPEAK_VOICE=en
+ESPEAK_SPEED=165
+```
+
 服务器首次下载 NLLB 模型时建议使用 HuggingFace 镜像：
 
 ```bash

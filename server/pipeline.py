@@ -5,6 +5,7 @@ from server.audio import encode_base64, generate_silence_wav
 from server.engines import (
     AsrEngine,
     AudioPostProcessor,
+    EspeakTtsEngine,
     FasterWhisperAsrEngine,
     GoogleTranslationEngine,
     NllbTranslationEngine,
@@ -123,6 +124,8 @@ def create_default_pipeline(
     nllb_device: str = "auto",
     nllb_max_new_tokens: int = 128,
     tts_engine: str = "stub",
+    espeak_voice: str = "en",
+    espeak_speed: int = 165,
 ) -> SpeechPipeline:
     if asr_engine == "stub":
         asr = StubAsrEngine()
@@ -155,6 +158,8 @@ def create_default_pipeline(
         tts = StubTtsEngine(sample_rate=output_sample_rate)
     elif tts_engine == "pyttsx3":
         tts = Pyttsx3TtsEngine()
+    elif tts_engine == "espeak":
+        tts = EspeakTtsEngine(voice=espeak_voice, speed=espeak_speed)
     else:
         raise ValueError(f"unsupported TTS_ENGINE: {tts_engine}")
 

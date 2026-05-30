@@ -21,6 +21,8 @@ pipeline = create_default_pipeline(
     nllb_device=settings.nllb_device,
     nllb_max_new_tokens=settings.nllb_max_new_tokens,
     tts_engine=settings.tts_engine,
+    espeak_voice=settings.espeak_voice,
+    espeak_speed=settings.espeak_speed,
 )
 
 app = FastAPI(title=settings.app_name)

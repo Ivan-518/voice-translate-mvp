@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     nllb_device: str = Field(default="auto", validation_alias="NLLB_DEVICE")
     nllb_max_new_tokens: int = Field(default=128, validation_alias="NLLB_MAX_NEW_TOKENS")
     tts_engine: str = Field(default="stub", validation_alias="TTS_ENGINE")
+    espeak_voice: str = Field(default="en", validation_alias="ESPEAK_VOICE")
+    espeak_speed: int = Field(default=165, validation_alias="ESPEAK_SPEED")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

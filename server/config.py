@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     llm_translation_model: str = Field(default="gpt-4o-mini", validation_alias="LLM_TRANSLATION_MODEL")
     llm_translation_timeout: float = Field(default=30.0, validation_alias="LLM_TRANSLATION_TIMEOUT")
     llm_translation_temperature: str = Field(default="", validation_alias="LLM_TRANSLATION_TEMPERATURE")
+    baidu_translate_app_id: str = Field(default="", validation_alias="BAIDU_TRANSLATE_APP_ID")
+    baidu_translate_secret_key: str = Field(default="", validation_alias="BAIDU_TRANSLATE_SECRET_KEY")
+    baidu_translate_endpoint: str = Field(
+        default="https://fanyi-api.baidu.com/api/trans/vip/translate",
+        validation_alias="BAIDU_TRANSLATE_ENDPOINT",
+    )
+    baidu_translate_timeout: float = Field(default=10.0, validation_alias="BAIDU_TRANSLATE_TIMEOUT")
     tts_engine: str = Field(default="stub", validation_alias="TTS_ENGINE")
     espeak_voice: str = Field(default="en", validation_alias="ESPEAK_VOICE")
     espeak_speed: int = Field(default=165, validation_alias="ESPEAK_SPEED")

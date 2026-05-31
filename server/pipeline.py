@@ -5,6 +5,7 @@ from server.audio import encode_base64, generate_silence_wav
 from server.engines import (
     AsrEngine,
     AudioPostProcessor,
+    BaiduTranslationEngine,
     EspeakTtsEngine,
     FasterWhisperAsrEngine,
     GoogleTranslationEngine,
@@ -133,6 +134,10 @@ def create_default_pipeline(
     llm_translation_model: str = "gpt-4o-mini",
     llm_translation_timeout: float = 30.0,
     llm_translation_temperature: str = "",
+    baidu_translate_app_id: str = "",
+    baidu_translate_secret_key: str = "",
+    baidu_translate_endpoint: str = "https://fanyi-api.baidu.com/api/trans/vip/translate",
+    baidu_translate_timeout: float = 10.0,
     tts_engine: str = "stub",
     espeak_voice: str = "en",
     espeak_speed: int = 165,
@@ -174,6 +179,13 @@ def create_default_pipeline(
             model=llm_translation_model,
             timeout=llm_translation_timeout,
             temperature=llm_translation_temperature,
+        )
+    elif translation_engine == "baidu":
+        translator = BaiduTranslationEngine(
+            app_id=baidu_translate_app_id,
+            secret_key=baidu_translate_secret_key,
+            endpoint=baidu_translate_endpoint,
+            timeout=baidu_translate_timeout,
         )
     else:
         raise ValueError(f"unsupported TRANSLATION_ENGINE: {translation_engine}")

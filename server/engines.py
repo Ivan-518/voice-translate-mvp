@@ -1,10 +1,13 @@
 import asyncio
+import hashlib
 import io
 import json
+import secrets
 import subprocess
 import tempfile
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 import wave
 from dataclasses import dataclass
@@ -485,6 +488,91 @@ class OpenAICompatibleTranslationEngine(TranslationEngine):
             if cleaned.startswith(prefix):
                 cleaned = cleaned[len(prefix) :].strip()
         return cleaned.strip("\"'“”")
+
+
+class BaiduTranslationEngine(TranslationEngine):
+    name = "baidu-translation"
+
+    def __init__(
+        self,
+        app_id: str,
+        secret_key: str,
+        endpoint: str = "https://fanyi-api.baidu.com/api/trans/vip/translate",
+        timeout: float = 10.0,
+    ) -> None:
+        self.app_id = app_id
+        self.secret_key = secret_key
+        self.endpoint = endpoint
+        self.timeout = timeout
+
+    async def translate(self, text: str, source_lang: str, target_lang: str) -> TranslationResult:
+        return await asyncio.to_thread(self._translate_sync, text, source_lang, target_lang)
+
+    def _translate_sync(self, text: str, source_lang: str, target_lang: str) -> TranslationResult:
+        if not text.strip():
+            return TranslationResult(text="", source_lang=source_lang, target_lang=target_lang)
+        if not self.app_id or not self.secret_key:
+            raise RuntimeError("BAIDU_TRANSLATE_APP_ID 或 BAIDU_TRANSLATE_SECRET_KEY 未配置")
+
+        source = self._normalize_lang(source_lang, is_source=True)
+        target = self._normalize_lang(target_lang, is_source=False)
+        salt = str(secrets.randbelow(10_000_000_000))
+        sign = hashlib.md5(f"{self.app_id}{text}{salt}{self.secret_key}".encode("utf-8")).hexdigest()
+        params = urllib.parse.urlencode(
+            {
+                "q": text,
+                "from": source,
+                "to": target,
+                "appid": self.app_id,
+                "salt": salt,
+                "sign": sign,
+            }
+        )
+        url = f"{self.endpoint}?{params}"
+
+        req = urllib.request.Request(url, method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as response:
+                body = response.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as exc:
+            error_body = exc.read().decode("utf-8", errors="ignore")
+            raise RuntimeError(f"百度翻译接口 HTTP {exc.code}: {error_body}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"百度翻译接口不可用：{exc.reason}") from exc
+
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"百度翻译响应不是 JSON：{body[:500]}") from exc
+
+        if "error_code" in data:
+            raise RuntimeError(f"百度翻译错误 {data.get('error_code')}: {data.get('error_msg')}")
+
+        results = data.get("trans_result") or []
+        translated = "\n".join(item.get("dst", "") for item in results).strip()
+        if not translated:
+            raise RuntimeError(f"百度翻译响应缺少 trans_result：{data}")
+
+        return TranslationResult(text=translated, source_lang=source_lang, target_lang=target_lang)
+
+    @staticmethod
+    def _normalize_lang(lang: str, is_source: bool) -> str:
+        if is_source and lang in {"", "auto", "unknown"}:
+            return "auto"
+        return {
+            "zh": "zh",
+            "zh-cn": "zh",
+            "zh_cn": "zh",
+            "zh-CN": "zh",
+            "en": "en",
+            "ja": "jp",
+            "jp": "jp",
+            "ko": "kor",
+            "fr": "fra",
+            "de": "de",
+            "es": "spa",
+            "ru": "ru",
+        }.get(lang, lang)
 
 
 class StubTtsEngine(TtsEngine):

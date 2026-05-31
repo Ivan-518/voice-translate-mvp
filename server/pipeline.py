@@ -33,6 +33,28 @@ class SpeechPipeline:
     postprocessors: list[AudioPostProcessor]
     fallback_sample_rate: int = 24000
 
+    async def warmup(
+        self,
+        source_lang: str = "zh",
+        target_lang: str = "en",
+        voice_id: str = "default",
+        asr_seconds: float = 1.0,
+        tts_text: str = "warm up",
+    ) -> dict[str, int]:
+        timings: dict[str, int] = {}
+        sample_rate = 16000
+        frame_count = max(1, int(sample_rate * asr_seconds))
+        silence = b"\x00\x00" * frame_count
+
+        start = perf_counter()
+        await self.asr.transcribe(silence, sample_rate, source_lang)
+        timings["asr"] = int((perf_counter() - start) * 1000)
+
+        start = perf_counter()
+        await self.tts.synthesize(tts_text, target_lang, voice_id)
+        timings["tts"] = int((perf_counter() - start) * 1000)
+        return timings
+
     async def process_audio(
         self,
         audio: bytes,

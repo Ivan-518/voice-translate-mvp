@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -54,6 +55,30 @@ pipeline = create_default_pipeline(
 )
 
 app = FastAPI(title=settings.app_name)
+warmup_state = {"status": "pending", "steps": {}, "error": ""}
+
+
+@app.on_event("startup")
+async def startup() -> None:
+    if settings.warmup_on_start:
+        asyncio.create_task(run_warmup())
+    else:
+        warmup_state.update({"status": "ready", "steps": {}, "error": ""})
+
+
+async def run_warmup() -> None:
+    warmup_state.update({"status": "warming", "steps": {}, "error": ""})
+    try:
+        steps = await pipeline.warmup(
+            source_lang="zh" if settings.default_source_lang in {"", "auto"} else settings.default_source_lang,
+            target_lang=settings.default_target_lang,
+            voice_id="default",
+            asr_seconds=settings.warmup_asr_seconds,
+            tts_text=settings.warmup_tts_text,
+        )
+        warmup_state.update({"status": "ready", "steps": steps, "error": ""})
+    except Exception as exc:
+        warmup_state.update({"status": "failed", "steps": {}, "error": str(exc)})
 
 
 @app.get("/")
@@ -290,7 +315,7 @@ async def home() -> str:
             <option value="ko">한국어</option>
           </select>
         </label>
-        <button id="startBtn">开始同传</button>
+        <button id="startBtn" disabled>开始同传</button>
         <button class="danger" id="stopBtn" disabled>停止同传</button>
       </div>
       <div class="meters">
@@ -320,6 +345,7 @@ async def home() -> str:
     let segmentId = 0;
     let playQueue = [];
     let playing = false;
+    let warmupReady = false;
 
     const startThreshold = 0.025;
     const stopThreshold = 0.014;
@@ -331,9 +357,34 @@ async def home() -> str:
       try {
         const res = await fetch("/health");
         if (!res.ok) throw new Error("health failed");
-        statusEl.textContent = "服务在线";
+        const data = await res.json();
+        warmupReady = data.warmup_status === "ready";
+        if (warmupReady) {
+          const parts = Object.entries(data.warmup_steps || {})
+            .map(([key, value]) => `${key}:${value}ms`)
+            .join(" · ");
+          statusEl.textContent = parts ? `服务就绪 · ${parts}` : "服务就绪";
+          if (!running) {
+            startBtn.disabled = false;
+            messageEl.textContent = "预热完成，可以开始";
+          }
+          return;
+        }
+        if (data.warmup_status === "failed") {
+          warmupReady = true;
+          statusEl.textContent = "预热失败";
+          startBtn.disabled = false;
+          messageEl.textContent = data.warmup_error || "预热失败，可尝试开始";
+          return;
+        }
+        statusEl.textContent = "服务预热中";
+        startBtn.disabled = true;
+        messageEl.textContent = "模型预热中，请稍候";
+        setTimeout(checkHealth, 1000);
       } catch {
         statusEl.textContent = "服务异常";
+        startBtn.disabled = true;
+        setTimeout(checkHealth, 1500);
       }
     }
 
@@ -349,6 +400,11 @@ async def home() -> str:
     stopBtn.addEventListener("click", stopInterpreting);
 
     async function startInterpreting() {
+      if (!warmupReady) {
+        messageEl.textContent = "模型还在预热，请稍候";
+        checkHealth();
+        return;
+      }
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioContext = new AudioContext();
@@ -382,7 +438,7 @@ async def home() -> str:
       mediaStream = null;
       audioContext = null;
       speaking = false;
-      startBtn.disabled = false;
+      startBtn.disabled = !warmupReady;
       stopBtn.disabled = true;
       levelBar.style.width = "0%";
       messageEl.textContent = "已停止";
@@ -609,7 +665,13 @@ async def home() -> str:
 
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    return HealthResponse(status="ok", app=settings.app_name)
+    return HealthResponse(
+        status="ok",
+        app=settings.app_name,
+        warmup_status=str(warmup_state["status"]),
+        warmup_steps=dict(warmup_state["steps"]),
+        warmup_error=str(warmup_state["error"]),
+    )
 
 
 @app.post("/api/process-text")

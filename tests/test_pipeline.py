@@ -58,3 +58,12 @@ def test_create_pipeline_with_edge_tts() -> None:
     pipeline = create_default_pipeline(output_sample_rate=24000, tts_engine="edge")
 
     assert pipeline.tts.name == "edge-tts"
+
+
+def test_pipeline_warmup_reports_asr_and_tts_timings() -> None:
+    pipeline = create_default_pipeline(output_sample_rate=24000)
+
+    timings = asyncio.run(pipeline.warmup(asr_seconds=0.01, tts_text="warm up"))
+
+    assert set(timings) == {"asr", "tts"}
+    assert all(value >= 0 for value in timings.values())

@@ -40,3 +40,6 @@ class SpeechProcessResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     app: str
+    warmup_status: str = "ready"
+    warmup_steps: dict[str, int] = Field(default_factory=dict)
+    warmup_error: str = ""

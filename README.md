@@ -124,6 +124,9 @@ FASTER_WHISPER_COMPUTE_TYPE=default
 EDGE_TTS_VOICE=en-US-JennyNeural
 EDGE_TTS_RATE=+0%
 EDGE_TTS_VOLUME=+0%
+WARMUP_ON_START=true
+WARMUP_ASR_SECONDS=1.0
+WARMUP_TTS_TEXT=warm up
 ```
 
 低配机器可以先用：
@@ -218,6 +221,9 @@ TTS_ENGINE=edge
 EDGE_TTS_VOICE=en-US-JennyNeural
 EDGE_TTS_RATE=+0%
 EDGE_TTS_VOLUME=+0%
+WARMUP_ON_START=true
+WARMUP_ASR_SECONDS=1.0
+WARMUP_TTS_TEXT=warm up
 ```
 
 如果 Edge TTS 网络不可用，或只需要离线验证链路，再改用命令行 `espeak-ng`：
@@ -384,6 +390,8 @@ python tools/download_models.py --asr
 ```bash
 python run_server.py --host 0.0.0.0 --port 6006
 ```
+
+服务启动后会在后台预热 ASR 和 TTS。`/health` 会返回 `warmup_status`，页面会在预热完成前禁用“开始同传”。状态为 `ready` 后再开始说话，可以避开第一句的 faster-whisper/CUDA 冷启动。
 
 ## 后续接入顺序
 

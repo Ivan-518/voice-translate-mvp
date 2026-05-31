@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     edge_tts_voice: str = Field(default="en-US-JennyNeural", validation_alias="EDGE_TTS_VOICE")
     edge_tts_rate: str = Field(default="+0%", validation_alias="EDGE_TTS_RATE")
     edge_tts_volume: str = Field(default="+0%", validation_alias="EDGE_TTS_VOLUME")
+    warmup_on_start: bool = Field(default=True, validation_alias="WARMUP_ON_START")
+    warmup_asr_seconds: float = Field(default=1.0, validation_alias="WARMUP_ASR_SECONDS")
+    warmup_tts_text: str = Field(default="warm up", validation_alias="WARMUP_TTS_TEXT")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     tts_engine: str = Field(default="stub", validation_alias="TTS_ENGINE")
     espeak_voice: str = Field(default="en", validation_alias="ESPEAK_VOICE")
     espeak_speed: int = Field(default=165, validation_alias="ESPEAK_SPEED")
+    edge_tts_voice: str = Field(default="en-US-JennyNeural", validation_alias="EDGE_TTS_VOICE")
+    edge_tts_rate: str = Field(default="+0%", validation_alias="EDGE_TTS_RATE")
+    edge_tts_volume: str = Field(default="+0%", validation_alias="EDGE_TTS_VOLUME")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

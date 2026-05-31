@@ -48,6 +48,9 @@ pipeline = create_default_pipeline(
     tts_engine=settings.tts_engine,
     espeak_voice=settings.espeak_voice,
     espeak_speed=settings.espeak_speed,
+    edge_tts_voice=settings.edge_tts_voice,
+    edge_tts_rate=settings.edge_tts_rate,
+    edge_tts_volume=settings.edge_tts_volume,
 )
 
 app = FastAPI(title=settings.app_name)
@@ -461,7 +464,7 @@ async def home() -> str:
         const data = await res.json();
         updateTimelineItem(row, data);
         if (!data.engine_trace.includes("no-speech")) {
-          enqueueAudio(data.audio_base64);
+          enqueueAudio(data.audio_base64, data.audio_format);
         }
       } catch (err) {
         row.querySelector(".state").textContent = "失败";
@@ -498,7 +501,7 @@ async def home() -> str:
           .join(" · ");
         item.querySelector(".state").textContent += " · " + timingText;
       }
-      item.querySelector("audio").src = URL.createObjectURL(base64ToBlob(data.audio_base64, "audio/wav"));
+      item.querySelector("audio").src = URL.createObjectURL(base64ToBlob(data.audio_base64, audioMimeType(data.audio_format)));
     }
 
     function noSpeechMessage(trace) {
@@ -517,15 +520,16 @@ async def home() -> str:
       return "未识别到有效语音";
     }
 
-    function enqueueAudio(base64) {
-      playQueue.push(base64);
+    function enqueueAudio(base64, format) {
+      playQueue.push({ base64, format });
       playNext();
     }
 
     function playNext() {
       if (playing || playQueue.length === 0) return;
       playing = true;
-      const audio = new Audio(URL.createObjectURL(base64ToBlob(playQueue.shift(), "audio/wav")));
+      const next = playQueue.shift();
+      const audio = new Audio(URL.createObjectURL(base64ToBlob(next.base64, audioMimeType(next.format))));
       audio.onended = () => {
         playing = false;
         playNext();
@@ -545,6 +549,12 @@ async def home() -> str:
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
       return new Blob([bytes], { type });
+    }
+
+    function audioMimeType(format) {
+      if (format === "mp3") return "audio/mpeg";
+      if (format === "wav") return "audio/wav";
+      return "application/octet-stream";
     }
 
     function uint8ToBase64(bytes) {

@@ -36,18 +36,27 @@ def main() -> None:
         },
     )
 
-    output_path = Path(args.output)
+    audio_format = result.get("audio_format", "wav")
+    output_path = output_path_for_format(Path(args.output), audio_format)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    wav_bytes = base64.b64decode(result["audio_base64"])
-    output_path.write_bytes(wav_bytes)
+    audio_bytes = base64.b64decode(result["audio_base64"])
+    output_path.write_bytes(audio_bytes)
 
     if args.play:
-        play_wav_bytes(wav_bytes, device=args.output_device)
+        if audio_format != "wav":
+            raise SystemExit(f"当前命令行播放器只支持 WAV，服务端返回的是 {audio_format}，已保存到 {output_path}")
+        play_wav_bytes(audio_bytes, device=args.output_device)
 
     print("source_text:", result["source_text"])
     print("translated_text:", result["translated_text"])
     print("audio:", output_path)
     print("engine_trace:", " -> ".join(result["engine_trace"]))
+
+
+def output_path_for_format(path: Path, audio_format: str) -> Path:
+    if path.suffix:
+        return path.with_suffix(f".{audio_format}")
+    return path.with_suffix(f".{audio_format}")
 
 
 if __name__ == "__main__":

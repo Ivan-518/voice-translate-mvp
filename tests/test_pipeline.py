@@ -52,3 +52,9 @@ def test_asr_diagnostic_is_exposed_in_engine_trace() -> None:
     )
 
     assert result.engine_trace == ["baidu-asr", "baidu-asr-rate-limited-3305", "no-speech"]
+
+
+def test_create_pipeline_with_edge_tts() -> None:
+    pipeline = create_default_pipeline(output_sample_rate=24000, tts_engine="edge")
+
+    assert pipeline.tts.name == "edge-tts"

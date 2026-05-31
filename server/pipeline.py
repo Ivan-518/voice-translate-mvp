@@ -7,6 +7,7 @@ from server.engines import (
     AudioPostProcessor,
     BaiduAsrEngine,
     BaiduTranslationEngine,
+    EdgeTtsEngine,
     EspeakTtsEngine,
     FasterWhisperAsrEngine,
     GoogleTranslationEngine,
@@ -153,6 +154,9 @@ def create_default_pipeline(
     tts_engine: str = "stub",
     espeak_voice: str = "en",
     espeak_speed: int = 165,
+    edge_tts_voice: str = "en-US-JennyNeural",
+    edge_tts_rate: str = "+0%",
+    edge_tts_volume: str = "+0%",
 ) -> SpeechPipeline:
     if asr_engine == "stub":
         asr = StubAsrEngine()
@@ -220,6 +224,8 @@ def create_default_pipeline(
         tts = Pyttsx3TtsEngine()
     elif tts_engine == "espeak":
         tts = EspeakTtsEngine(voice=espeak_voice, speed=espeak_speed)
+    elif tts_engine == "edge":
+        tts = EdgeTtsEngine(voice=edge_tts_voice, rate=edge_tts_rate, volume=edge_tts_volume)
     else:
         raise ValueError(f"unsupported TTS_ENGINE: {tts_engine}")
 

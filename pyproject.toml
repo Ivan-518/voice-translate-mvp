@@ -34,6 +34,7 @@ qwen-translate = [
     "transformers>=4.42",
 ]
 tts = [
+    "edge-tts>=6.1.12",
     "pyttsx3>=2.90",
 ]
 client = [

@@ -778,6 +778,54 @@ class Pyttsx3TtsEngine(TtsEngine):
             return wav_file.getframerate()
 
 
+class EdgeTtsEngine(TtsEngine):
+    name = "edge-tts"
+
+    def __init__(self, voice: str = "en-US-JennyNeural", rate: str = "+0%", volume: str = "+0%") -> None:
+        self.voice = voice
+        self.rate = rate
+        self.volume = volume
+
+    async def synthesize(self, text: str, target_lang: str, voice_id: str) -> TtsResult:
+        if not text.strip():
+            return TtsResult(audio=generate_silence_wav(24000, 0.25), sample_rate=24000, audio_format="wav")
+
+        try:
+            import edge_tts
+        except ImportError as exc:
+            raise RuntimeError("未安装 edge-tts。请先运行：pip install -e \".[tts]\"") from exc
+
+        voice = voice_id if voice_id and voice_id != "default" else self._voice_for_lang(target_lang)
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
+            mp3_path = Path(tmp_file.name)
+
+        try:
+            communicate = edge_tts.Communicate(text, voice=voice, rate=self.rate, volume=self.volume)
+            await communicate.save(str(mp3_path))
+            audio = mp3_path.read_bytes()
+            if not audio:
+                raise RuntimeError("Edge TTS 生成了空音频")
+            return TtsResult(audio=audio, sample_rate=24000, audio_format="mp3")
+        finally:
+            try:
+                mp3_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    def _voice_for_lang(self, target_lang: str) -> str:
+        lang = target_lang.split("-")[0].lower()
+        return {
+            "zh": "zh-CN-XiaoxiaoNeural",
+            "en": self.voice,
+            "ja": "ja-JP-NanamiNeural",
+            "ko": "ko-KR-SunHiNeural",
+            "fr": "fr-FR-DeniseNeural",
+            "de": "de-DE-KatjaNeural",
+            "es": "es-ES-ElviraNeural",
+            "ru": "ru-RU-SvetlanaNeural",
+        }.get(lang, self.voice)
+
+
 class EspeakTtsEngine(TtsEngine):
     name = "espeak-tts"
 

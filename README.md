@@ -117,10 +117,13 @@ copy .env.example .env
 ```text
 ASR_ENGINE=faster_whisper
 TRANSLATION_ENGINE=google
-TTS_ENGINE=pyttsx3
+TTS_ENGINE=edge
 FASTER_WHISPER_MODEL=small
 FASTER_WHISPER_DEVICE=auto
 FASTER_WHISPER_COMPUTE_TYPE=default
+EDGE_TTS_VOICE=en-US-JennyNeural
+EDGE_TTS_RATE=+0%
+EDGE_TTS_VOLUME=+0%
 ```
 
 低配机器可以先用：
@@ -195,7 +198,7 @@ python -m client.record_once --seconds 3 --source-lang zh --target-lang en --pla
 麦克风录音
   -> faster-whisper 识别
   -> Google Translate 或本地 NLLB 翻译
-  -> Windows SAPI / pyttsx3 本地 TTS
+  -> Edge TTS / espeak / pyttsx3 TTS
   -> 本地播放或输出到指定音频设备
 ```
 
@@ -208,7 +211,16 @@ NLLB_DEVICE=cuda
 NLLB_MAX_NEW_TOKENS=128
 ```
 
-Linux 服务器不建议用 `pyttsx3`。如果出现 espeak voice 报错，改用命令行 `espeak-ng`：
+Linux 服务器不建议用 `pyttsx3`。优先用 Edge TTS，声音比 espeak 自然：
+
+```text
+TTS_ENGINE=edge
+EDGE_TTS_VOICE=en-US-JennyNeural
+EDGE_TTS_RATE=+0%
+EDGE_TTS_VOLUME=+0%
+```
+
+如果 Edge TTS 网络不可用，或只需要离线验证链路，再改用命令行 `espeak-ng`：
 
 ```bash
 apt-get update
@@ -334,7 +346,7 @@ apt-get install -y espeak-ng
 HF_ENDPOINT=https://hf-mirror.com
 ASR_ENGINE=faster_whisper
 TRANSLATION_ENGINE=baidu
-TTS_ENGINE=espeak
+TTS_ENGINE=edge
 SOURCE_LANG=zh
 TARGET_LANG=en
 OUTPUT_SAMPLE_RATE=24000
@@ -356,8 +368,9 @@ BAIDU_TRANSLATE_APP_ID=你的 APP ID
 BAIDU_TRANSLATE_SECRET_KEY=你的密钥
 BAIDU_TRANSLATE_ENDPOINT=https://fanyi-api.baidu.com/api/trans/vip/translate
 BAIDU_TRANSLATE_TIMEOUT=10
-ESPEAK_VOICE=en
-ESPEAK_SPEED=165
+EDGE_TTS_VOICE=en-US-JennyNeural
+EDGE_TTS_RATE=+0%
+EDGE_TTS_VOLUME=+0%
 ```
 
 预下载模型：
@@ -378,7 +391,7 @@ python run_server.py --host 0.0.0.0 --port 6006
 | --- | --- | --- |
 | 1 | 接真实 ASR | 已支持 `FasterWhisperAsrEngine` 和 `BaiduAsrEngine` |
 | 2 | 接真实翻译 | 已支持 Google、NLLB、Qwen、OpenAI-compatible API 和百度翻译引擎 |
-| 3 | 接真实 TTS | 已支持 `Pyttsx3TtsEngine`，通过 `TTS_ENGINE=pyttsx3` 启用 |
+| 3 | 接真实 TTS | 已支持 Edge TTS、espeak 和 pyttsx3，推荐通过 `TTS_ENGINE=edge` 启用 |
 | 4 | 本地虚拟麦克风 | `client/` 新增输出设备选择和持续播放队列 |
 | 5 | 接 RVC | 在 `AudioPostProcessor` 后处理钩子里增加 `RvcPostProcessor` |
 

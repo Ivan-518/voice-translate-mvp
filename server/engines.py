@@ -27,6 +27,7 @@ from server.audio import (
 class AsrResult:
     text: str
     language: str
+    diagnostic: str = ""
 
 
 @dataclass(frozen=True)
@@ -176,12 +177,12 @@ class BaiduAsrEngine(AsrEngine):
 
     def _transcribe_sync(self, audio: bytes, sample_rate: int, source_lang: str) -> AsrResult:
         if not audio:
-            return AsrResult(text="", language=self._result_language(source_lang))
+            return AsrResult(text="", language=self._result_language(source_lang), diagnostic="baidu-asr-empty-audio")
         if not self.api_key or not self.secret_key:
             raise RuntimeError("BAIDU_ASR_API_KEY 或 BAIDU_ASR_SECRET_KEY 未配置")
 
         if self._should_skip_for_rate_limit():
-            return AsrResult(text="", language=self._result_language(source_lang))
+            return AsrResult(text="", language=self._result_language(source_lang), diagnostic="baidu-asr-rate-limited-local")
 
         pcm_audio = resample_pcm_s16le(audio, sample_rate, self.sample_rate)
         payload = {
@@ -216,10 +217,11 @@ class BaiduAsrEngine(AsrEngine):
 
         if data.get("err_no") != 0:
             if data.get("err_no") == 3305:
-                return AsrResult(text="", language=self._result_language(source_lang))
+                return AsrResult(text="", language=self._result_language(source_lang), diagnostic="baidu-asr-rate-limited-3305")
             raise RuntimeError(f"百度 ASR 错误 {data.get('err_no')}: {data.get('err_msg')}")
         text = "".join(data.get("result") or []).strip()
-        return AsrResult(text=text, language=self._result_language(source_lang))
+        diagnostic = "baidu-asr-empty-result" if not text else ""
+        return AsrResult(text=text, language=self._result_language(source_lang), diagnostic=diagnostic)
 
     def _should_skip_for_rate_limit(self) -> bool:
         if self.min_interval <= 0:

@@ -490,7 +490,7 @@ async def home() -> str:
       item.querySelector(".state").textContent = data.engine_trace.join(" -> ");
       item.querySelector(".source").textContent = data.source_text || "-";
       item.querySelector(".translated").textContent = data.engine_trace.includes("no-speech")
-        ? "未识别到有效语音"
+        ? noSpeechMessage(data.engine_trace)
         : (data.translated_text || "-");
       if (data.timings_ms) {
         const timingText = Object.entries(data.timings_ms)
@@ -499,6 +499,22 @@ async def home() -> str:
         item.querySelector(".state").textContent += " · " + timingText;
       }
       item.querySelector("audio").src = URL.createObjectURL(base64ToBlob(data.audio_base64, "audio/wav"));
+    }
+
+    function noSpeechMessage(trace) {
+      if (trace.includes("baidu-asr-rate-limited-local")) {
+        return "百度 ASR 本地限流：当前片段跳过";
+      }
+      if (trace.includes("baidu-asr-rate-limited-3305")) {
+        return "百度 ASR 返回 3305：请求过快或配额受限";
+      }
+      if (trace.includes("baidu-asr-empty-result")) {
+        return "百度 ASR 返回空结果：可能是音量小、片段太短或内容未识别";
+      }
+      if (trace.includes("baidu-asr-empty-audio")) {
+        return "上传音频为空";
+      }
+      return "未识别到有效语音";
     }
 
     function enqueueAudio(base64) {

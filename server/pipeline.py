@@ -47,6 +47,8 @@ class SpeechPipeline:
         timings["asr"] = int((perf_counter() - start) * 1000)
         trace.append(self.asr.name)
         if not asr_result.text.strip():
+            if asr_result.diagnostic:
+                trace.append(asr_result.diagnostic)
             silence = generate_silence_wav(self.fallback_sample_rate)
             return SpeechProcessResponse(
                 source_text="",

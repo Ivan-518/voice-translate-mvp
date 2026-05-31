@@ -5,6 +5,7 @@ from server.audio import encode_base64, generate_silence_wav
 from server.engines import (
     AsrEngine,
     AudioPostProcessor,
+    BaiduAsrEngine,
     BaiduTranslationEngine,
     EspeakTtsEngine,
     FasterWhisperAsrEngine,
@@ -122,6 +123,14 @@ def create_default_pipeline(
     faster_whisper_beam_size: int = 5,
     faster_whisper_vad_filter: bool = True,
     faster_whisper_initial_prompt: str = "",
+    baidu_asr_api_key: str = "",
+    baidu_asr_secret_key: str = "",
+    baidu_asr_cuid: str = "voice-translate-mvp",
+    baidu_asr_dev_pid: int = 1537,
+    baidu_asr_endpoint: str = "https://vop.baidu.com/server_api",
+    baidu_asr_token_url: str = "https://aip.baidubce.com/oauth/2.0/token",
+    baidu_asr_timeout: float = 15.0,
+    baidu_asr_sample_rate: int = 16000,
     translation_engine: str = "stub",
     nllb_model: str = "facebook/nllb-200-distilled-600M",
     nllb_device: str = "auto",
@@ -152,6 +161,17 @@ def create_default_pipeline(
             beam_size=faster_whisper_beam_size,
             vad_filter=faster_whisper_vad_filter,
             initial_prompt=faster_whisper_initial_prompt,
+        )
+    elif asr_engine == "baidu":
+        asr = BaiduAsrEngine(
+            api_key=baidu_asr_api_key,
+            secret_key=baidu_asr_secret_key,
+            cuid=baidu_asr_cuid,
+            dev_pid=baidu_asr_dev_pid,
+            endpoint=baidu_asr_endpoint,
+            token_url=baidu_asr_token_url,
+            timeout=baidu_asr_timeout,
+            sample_rate=baidu_asr_sample_rate,
         )
     else:
         raise ValueError(f"unsupported ASR_ENGINE: {asr_engine}")

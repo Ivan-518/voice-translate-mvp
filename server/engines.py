@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import hashlib
 import io
 import json
@@ -13,7 +14,12 @@ import wave
 from dataclasses import dataclass
 from pathlib import Path
 
-from server.audio import generate_silence_wav, generate_tone_wav, pcm_s16le_duration_seconds
+from server.audio import (
+    generate_silence_wav,
+    generate_tone_wav,
+    pcm_s16le_duration_seconds,
+    resample_pcm_s16le,
+)
 
 
 @dataclass(frozen=True)
@@ -134,6 +140,112 @@ class FasterWhisperAsrEngine(AsrEngine):
             wav_file.writeframes(audio)
         buffer.seek(0)
         return buffer
+
+
+class BaiduAsrEngine(AsrEngine):
+    name = "baidu-asr"
+
+    def __init__(
+        self,
+        api_key: str,
+        secret_key: str,
+        cuid: str = "voice-translate-mvp",
+        dev_pid: int = 1537,
+        endpoint: str = "https://vop.baidu.com/server_api",
+        token_url: str = "https://aip.baidubce.com/oauth/2.0/token",
+        timeout: float = 15.0,
+        sample_rate: int = 16000,
+    ) -> None:
+        self.api_key = api_key
+        self.secret_key = secret_key
+        self.cuid = cuid
+        self.dev_pid = dev_pid
+        self.endpoint = endpoint
+        self.token_url = token_url
+        self.timeout = timeout
+        self.sample_rate = sample_rate
+        self._access_token: str | None = None
+
+    async def transcribe(self, audio: bytes, sample_rate: int, source_lang: str) -> AsrResult:
+        return await asyncio.to_thread(self._transcribe_sync, audio, sample_rate, source_lang)
+
+    def _transcribe_sync(self, audio: bytes, sample_rate: int, source_lang: str) -> AsrResult:
+        if not audio:
+            return AsrResult(text="", language=self._result_language(source_lang))
+        if not self.api_key or not self.secret_key:
+            raise RuntimeError("BAIDU_ASR_API_KEY 或 BAIDU_ASR_SECRET_KEY 未配置")
+
+        pcm_audio = resample_pcm_s16le(audio, sample_rate, self.sample_rate)
+        payload = {
+            "format": "pcm",
+            "rate": self.sample_rate,
+            "channel": 1,
+            "cuid": self.cuid,
+            "token": self._get_access_token(),
+            "dev_pid": self.dev_pid,
+            "speech": base64.b64encode(pcm_audio).decode("ascii"),
+            "len": len(pcm_audio),
+        }
+        request = urllib.request.Request(
+            self.endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                body = response.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as exc:
+            error_body = exc.read().decode("utf-8", errors="ignore")
+            raise RuntimeError(f"百度 ASR 接口 HTTP {exc.code}: {error_body}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"百度 ASR 接口不可用：{exc.reason}") from exc
+
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"百度 ASR 响应不是 JSON：{body[:500]}") from exc
+
+        if data.get("err_no") != 0:
+            raise RuntimeError(f"百度 ASR 错误 {data.get('err_no')}: {data.get('err_msg')}")
+        text = "".join(data.get("result") or []).strip()
+        return AsrResult(text=text, language=self._result_language(source_lang))
+
+    def _get_access_token(self) -> str:
+        if self._access_token:
+            return self._access_token
+
+        params = urllib.parse.urlencode(
+            {
+                "grant_type": "client_credentials",
+                "client_id": self.api_key,
+                "client_secret": self.secret_key,
+            }
+        )
+        url = f"{self.token_url}?{params}"
+        request = urllib.request.Request(url, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                body = response.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as exc:
+            error_body = exc.read().decode("utf-8", errors="ignore")
+            raise RuntimeError(f"百度 ASR token HTTP {exc.code}: {error_body}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"百度 ASR token 接口不可用：{exc.reason}") from exc
+
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"百度 ASR token 响应不是 JSON：{body[:500]}") from exc
+        token = data.get("access_token")
+        if not token:
+            raise RuntimeError(f"百度 ASR token 响应缺少 access_token：{data}")
+        self._access_token = token
+        return token
+
+    @staticmethod
+    def _result_language(source_lang: str) -> str:
+        return "zh" if source_lang in {"", "auto", "unknown"} else source_lang
 
 
 class StubTranslationEngine(TranslationEngine):

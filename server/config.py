@@ -22,6 +22,17 @@ class Settings(BaseSettings):
         default="以下是普通话中文语音，请准确转写为简体中文。",
         validation_alias="FASTER_WHISPER_INITIAL_PROMPT",
     )
+    baidu_asr_api_key: str = Field(default="", validation_alias="BAIDU_ASR_API_KEY")
+    baidu_asr_secret_key: str = Field(default="", validation_alias="BAIDU_ASR_SECRET_KEY")
+    baidu_asr_cuid: str = Field(default="voice-translate-mvp", validation_alias="BAIDU_ASR_CUID")
+    baidu_asr_dev_pid: int = Field(default=1537, validation_alias="BAIDU_ASR_DEV_PID")
+    baidu_asr_endpoint: str = Field(default="https://vop.baidu.com/server_api", validation_alias="BAIDU_ASR_ENDPOINT")
+    baidu_asr_token_url: str = Field(
+        default="https://aip.baidubce.com/oauth/2.0/token",
+        validation_alias="BAIDU_ASR_TOKEN_URL",
+    )
+    baidu_asr_timeout: float = Field(default=15.0, validation_alias="BAIDU_ASR_TIMEOUT")
+    baidu_asr_sample_rate: int = Field(default=16000, validation_alias="BAIDU_ASR_SAMPLE_RATE")
     translation_engine: str = Field(default="stub", validation_alias="TRANSLATION_ENGINE")
     nllb_model: str = Field(default="facebook/nllb-200-distilled-600M", validation_alias="NLLB_MODEL")
     nllb_device: str = Field(default="auto", validation_alias="NLLB_DEVICE")

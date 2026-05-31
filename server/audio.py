@@ -4,6 +4,7 @@ import math
 import subprocess
 import struct
 import wave
+from array import array
 
 
 def encode_base64(data: bytes) -> str:
@@ -48,6 +49,36 @@ def wav_to_pcm_s16le(audio: bytes) -> tuple[bytes, int]:
     for offset in range(0, len(frames), frame_width):
         mono.extend(frames[offset : offset + sample_width])
     return bytes(mono), sample_rate
+
+
+def resample_pcm_s16le(audio: bytes, source_rate: int, target_rate: int) -> bytes:
+    if source_rate == target_rate:
+        return audio
+    if source_rate <= 0 or target_rate <= 0:
+        raise ValueError("source_rate and target_rate must be positive")
+    if not audio:
+        return audio
+
+    samples = array("h")
+    samples.frombytes(audio)
+    if len(samples) == 0:
+        return audio
+
+    target_length = max(1, int(len(samples) * target_rate / source_rate))
+    converted = array("h")
+    converted.extend(0 for _ in range(target_length))
+
+    ratio = source_rate / target_rate
+    last_index = len(samples) - 1
+    for output_index in range(target_length):
+        source_pos = output_index * ratio
+        left = int(source_pos)
+        right = min(left + 1, last_index)
+        fraction = source_pos - left
+        value = int(samples[left] * (1.0 - fraction) + samples[right] * fraction)
+        converted[output_index] = max(-32768, min(32767, value))
+
+    return converted.tobytes()
 
 
 def generate_tone_wav(

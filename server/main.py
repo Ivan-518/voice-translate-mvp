@@ -320,9 +320,9 @@ async def home() -> str:
 
     const startThreshold = 0.025;
     const stopThreshold = 0.014;
-    const silenceLimitMs = 1200;
-    const minSegmentMs = 1800;
-    const maxSegmentMs = 8000;
+    const silenceLimitMs = 750;
+    const minSegmentMs = 900;
+    const maxSegmentMs = 5000;
 
     async function checkHealth() {
       try {

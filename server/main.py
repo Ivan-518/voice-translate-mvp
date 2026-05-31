@@ -28,6 +28,7 @@ pipeline = create_default_pipeline(
     baidu_asr_token_url=settings.baidu_asr_token_url,
     baidu_asr_timeout=settings.baidu_asr_timeout,
     baidu_asr_sample_rate=settings.baidu_asr_sample_rate,
+    baidu_asr_min_interval=settings.baidu_asr_min_interval,
     translation_engine=settings.translation_engine,
     nllb_model=settings.nllb_model,
     nllb_device=settings.nllb_device,
@@ -319,9 +320,9 @@ async def home() -> str:
 
     const startThreshold = 0.025;
     const stopThreshold = 0.014;
-    const silenceLimitMs = 850;
-    const minSegmentMs = 550;
-    const maxSegmentMs = 5600;
+    const silenceLimitMs = 1200;
+    const minSegmentMs = 1800;
+    const maxSegmentMs = 8000;
 
     async function checkHealth() {
       try {

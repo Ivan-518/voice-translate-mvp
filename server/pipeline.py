@@ -131,6 +131,7 @@ def create_default_pipeline(
     baidu_asr_token_url: str = "https://aip.baidubce.com/oauth/2.0/token",
     baidu_asr_timeout: float = 15.0,
     baidu_asr_sample_rate: int = 16000,
+    baidu_asr_min_interval: float = 2.0,
     translation_engine: str = "stub",
     nllb_model: str = "facebook/nllb-200-distilled-600M",
     nllb_device: str = "auto",
@@ -172,6 +173,7 @@ def create_default_pipeline(
             token_url=baidu_asr_token_url,
             timeout=baidu_asr_timeout,
             sample_rate=baidu_asr_sample_rate,
+            min_interval=baidu_asr_min_interval,
         )
     else:
         raise ValueError(f"unsupported ASR_ENGINE: {asr_engine}")

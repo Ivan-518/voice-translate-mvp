@@ -7,6 +7,7 @@ import secrets
 import subprocess
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -155,6 +156,7 @@ class BaiduAsrEngine(AsrEngine):
         token_url: str = "https://aip.baidubce.com/oauth/2.0/token",
         timeout: float = 15.0,
         sample_rate: int = 16000,
+        min_interval: float = 2.0,
     ) -> None:
         self.api_key = api_key
         self.secret_key = secret_key
@@ -164,7 +166,10 @@ class BaiduAsrEngine(AsrEngine):
         self.token_url = token_url
         self.timeout = timeout
         self.sample_rate = sample_rate
+        self.min_interval = min_interval
         self._access_token: str | None = None
+        self._last_request_at = 0.0
+        self._request_lock = threading.Lock()
 
     async def transcribe(self, audio: bytes, sample_rate: int, source_lang: str) -> AsrResult:
         return await asyncio.to_thread(self._transcribe_sync, audio, sample_rate, source_lang)
@@ -174,6 +179,9 @@ class BaiduAsrEngine(AsrEngine):
             return AsrResult(text="", language=self._result_language(source_lang))
         if not self.api_key or not self.secret_key:
             raise RuntimeError("BAIDU_ASR_API_KEY 或 BAIDU_ASR_SECRET_KEY 未配置")
+
+        if self._should_skip_for_rate_limit():
+            return AsrResult(text="", language=self._result_language(source_lang))
 
         pcm_audio = resample_pcm_s16le(audio, sample_rate, self.sample_rate)
         payload = {
@@ -207,9 +215,22 @@ class BaiduAsrEngine(AsrEngine):
             raise RuntimeError(f"百度 ASR 响应不是 JSON：{body[:500]}") from exc
 
         if data.get("err_no") != 0:
+            if data.get("err_no") == 3305:
+                return AsrResult(text="", language=self._result_language(source_lang))
             raise RuntimeError(f"百度 ASR 错误 {data.get('err_no')}: {data.get('err_msg')}")
         text = "".join(data.get("result") or []).strip()
         return AsrResult(text=text, language=self._result_language(source_lang))
+
+    def _should_skip_for_rate_limit(self) -> bool:
+        if self.min_interval <= 0:
+            return False
+
+        now = time.monotonic()
+        with self._request_lock:
+            if now - self._last_request_at < self.min_interval:
+                return True
+            self._last_request_at = now
+            return False
 
     def _get_access_token(self) -> str:
         if self._access_token:

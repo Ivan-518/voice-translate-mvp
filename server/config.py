@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     )
     baidu_asr_timeout: float = Field(default=15.0, validation_alias="BAIDU_ASR_TIMEOUT")
     baidu_asr_sample_rate: int = Field(default=16000, validation_alias="BAIDU_ASR_SAMPLE_RATE")
+    baidu_asr_min_interval: float = Field(default=2.0, validation_alias="BAIDU_ASR_MIN_INTERVAL")
     translation_engine: str = Field(default="stub", validation_alias="TRANSLATION_ENGINE")
     nllb_model: str = Field(default="facebook/nllb-200-distilled-600M", validation_alias="NLLB_MODEL")
     nllb_device: str = Field(default="auto", validation_alias="NLLB_DEVICE")
